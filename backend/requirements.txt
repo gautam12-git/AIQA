@@ -1,0 +1,14 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+pydantic-settings>=2.3
+httpx>=0.27
+# Persistence: MySQL (async)
+sqlalchemy[asyncio]>=2.0
+aiomysql>=0.2
+# Required for MySQL 8 caching_sha2_password auth (else connect fails silently)
+cryptography>=42.0
+# Browser workers (used by the orchestrator; install chromium via `playwright install chromium`)
+playwright>=1.47
+# Deployment target
+modal>=0.64

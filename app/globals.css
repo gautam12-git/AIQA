@@ -1,26 +1,229 @@
 @import "tailwindcss";
 
+/* ================================================================== *
+ * AIQA design system — "Modern Dark / Cinematic" (ui-ux-pro-max).
+ * Glassmorphism + ambient glow + layered depth. Indigo-blue primary,
+ * amber highlight, technical Fira type. All components read these
+ * tokens, so this file re-themes the whole app.
+ * ================================================================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces — deep violet-black, layered (never pure #000 → OLED smear) */
+  --bg: #0a0812;
+  --surface: #130f1e;
+  --surface-2: #1b1529;
+  --surface-3: #251d37;
+  --line: #2b2342;
+  --line-strong: #3f3459;
+
+  /* Glass */
+  --glass-bg: rgba(23, 18, 36, 0.64);
+  --glass-border: rgba(255, 255, 255, 0.07);
+
+  /* Text */
+  --text: #f2eefb;
+  --text-secondary: #b3aac9;
+  --text-muted: #7a7192;
+
+  /* Brand accent — violet (bright, accessible on dark) */
+  --accent: #a78bfa;
+  --accent-hover: #bda6fd;
+  --accent-strong: #7c3aed;
+  --accent-soft: rgba(167, 139, 250, 0.15);
+  --accent-line: rgba(167, 139, 250, 0.34);
+
+  /* Signature gradient — violet → magenta/pink (aurora) */
+  --grad-start: #7c3aed;
+  --grad-mid: #b83ad1;
+  --grad-end: #ec4899;
+
+  /* Pink highlight (secondary accent for key data) */
+  --highlight: #f472b6;
+  --highlight-soft: rgba(244, 114, 182, 0.14);
+
+  /* Severity scale */
+  --p0: #ff5d6c;
+  --p1: #ff9f45;
+  --p2: #f5c451;
+  --p3: #8b93ff;
+
+  /* Semantic */
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.13);
+  --warning: #f5c451;
+  --danger: #ff5d6c;
+  --danger-soft: rgba(255, 93, 108, 0.13);
+  --info: #a78bfa;
+  --info-soft: rgba(167, 139, 250, 0.13);
+
+  /* Elevation */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.45), 0 10px 26px -14px rgba(0, 0, 0, 0.65);
+  --shadow-pop: 0 14px 44px -12px rgba(0, 0, 0, 0.72);
+  --shadow-glow: 0 0 0 1px var(--accent-line), 0 10px 34px -8px rgba(167, 139, 250, 0.4);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-content: var(--text);
+  --color-secondary: var(--text-secondary);
+  --color-muted: var(--text-muted);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-highlight: var(--highlight);
+
+  --color-p0: var(--p0);
+  --color-p1: var(--p1);
+  --color-p2: var(--p2);
+  --color-p3: var(--p3);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+
+  --font-sans: var(--font-fira-sans), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-fira-code), ui-monospace, "SF Mono", monospace;
+
+  --radius-card: 14px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--line);
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv02", "cv03", "cv04";
+}
+
+/* Ambient cinematic wash — indigo + amber glow blobs */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(1000px 560px at 84% -10%, rgba(167, 139, 250, 0.18), transparent 60%),
+    radial-gradient(780px 480px at -8% 8%, rgba(236, 72, 153, 0.10), transparent 55%),
+    radial-gradient(900px 720px at 45% 125%, rgba(56, 189, 248, 0.06), transparent 60%);
+  pointer-events: none;
+}
+
+/* Faint grid texture for that "ops console" feel */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle at 50% 0%, black, transparent 75%);
+  pointer-events: none;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+/* Numbers/data align cleanly */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+
+/* ---- Reusable cinematic utilities -------------------------------- */
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border-color: var(--glass-border);
+}
+
+.glow-accent {
+  box-shadow: var(--shadow-glow);
+}
+
+.card-hover {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.card-hover:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
+}
+
+.gradient-text {
+  background: linear-gradient(100deg, #ffffff 8%, var(--accent) 45%, var(--highlight) 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Signature brand gradient for logos/CTAs — violet → magenta → pink */
+.grad-brand {
+  background: linear-gradient(120deg, var(--grad-start), var(--grad-mid) 55%, var(--grad-end));
+}
+
+.hairline-top {
+  position: relative;
+}
+.hairline-top::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-line), transparent);
+  opacity: 0.5;
+}
+
+/* Thin scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--line-strong);
+  background-clip: content-box;
+}
+
+/* ---- Motion ------------------------------------------------------ */
+
+@keyframes aiqa-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.aiqa-pulse { animation: aiqa-pulse 1.6s ease-in-out infinite; }
+
+@keyframes aiqa-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.aiqa-fade-up { animation: aiqa-fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes aiqa-drift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(2%, -2%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
