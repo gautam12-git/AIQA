@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AIQA — Autonomous AI QA Engineer
 
-## Getting Started
+AIQA takes a URL and autonomously explores, tests, and reports **replay-verified**
+defects across UI, security, accessibility, performance, and business logic —
+with evidence attached to every finding. It also includes a **Code Review** mode
+for source files and public GitHub repositories.
 
-First, run the development server:
+Its guiding principle is a **low false-positive rate**: nothing is reported until
+it has been reproduced by replay.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Features
+
+- **Autonomous crawl & test** of any URL (Playwright / Chromium)
+- **Hybrid detection** — deterministic detectors + LLM-guided exploration:
+  - Accessibility (WCAG DOM checks), performance (LCP / TTFB web vitals),
+    broken pages & images, console / JS errors, missing security headers,
+    insecure CORS, IDOR / broken-access, and form-validation gaps
+- **Replay-verification engine** — each finding is reproduced before it surfaces
+- **Evidence capture** — screenshots, console, network, and DOM
+- **Authenticated testing** (login) with basic cross-user (IDOR) checks
+- **Vision model** for visual UI bugs
+- **Code Review mode** — paste code or point it at a public GitHub repo
+- **Live run streaming** (SSE) and **MySQL** persistence
+
+## Tech stack
+
+- **Frontend:** Next.js, React, TypeScript, Tailwind CSS
+- **Backend:** FastAPI, Playwright, SQLAlchemy (async), MySQL
+- **AI:** OpenAI-compatible LLM providers + a vision model
+
+## Architecture
+
+```
+discover (crawl)  →  detect (deterministic + AI)  →  verify by replay  →  report
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- `backend/app/services/` — browser, detectors, verifier, auth, orchestrator, code_review …
+- `lib/data.ts` — single data-source swap point (mock ↔ real API)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Running locally
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Backend
+```bash
+cd backend
+python -m venv .venv
+# Windows:  .venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+playwright install chromium
+cp .env.example .env        # fill in LLM keys + MySQL credentials
+uvicorn app.main:app --port 8010
+```
 
-## Learn More
+### Frontend
+```bash
+npm install
+# in .env.local:
+#   NEXT_PUBLIC_USE_MOCK=false
+#   NEXT_PUBLIC_API_URL=http://127.0.0.1:8010
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Notes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Secrets live only in a gitignored `.env` — never committed.
+- Only test websites you are authorized to test.
