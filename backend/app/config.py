@@ -74,6 +74,13 @@ class Settings(BaseSettings):
     # --- Storage for evidence (screenshots/DOM/traces) ---
     evidence_bucket: str = Field(default="", validation_alias="EVIDENCE_BUCKET")
 
+    # --- Product auth (user login / OTP email verification) ---
+    jwt_secret: str = Field(default="dev-insecure-change-me", validation_alias="JWT_SECRET")
+    jwt_expiry_hours: int = Field(default=168, validation_alias="JWT_EXPIRY_HOURS")  # 7 days
+    # Email via Brevo HTTP API (same provider as smart-expense).
+    brevo_api_key: str = Field(default="", validation_alias="BREVO_API_KEY")
+    brevo_from: str = Field(default="AIQA <no-reply@aiqa.dev>", validation_alias="BREVO_FROM")
+
     @property
     def sqlalchemy_url(self) -> str:
         """Async SQLAlchemy URL for MySQL (aiomysql driver)."""

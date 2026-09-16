@@ -131,7 +131,7 @@ async def launch_run(run_id: str, credentials: list | None = None) -> None:
                 bugs.extend(candidates)
                 _phase(run, "AI-guided exploration", "done", f"{len(candidates)} proposed")
             except Exception as exc:  # never fail the run on agent error
-                _phase(run, "AI-guided exploration", "done", f"error: {str(exc)[:60]}")
+                _phase(run, "AI-guided exploration", "done", "skipped — exploration hit an error")
         else:
             _phase(run, "AI-guided exploration", "done",
                    "skipped — LLM not configured" if not llm_on else "skipped in quick mode")
@@ -145,7 +145,7 @@ async def launch_run(run_id: str, credentials: list | None = None) -> None:
                 bugs.extend(bac)
                 _phase(run, "Access control checks", "done", f"{len(bac)} access issue(s)")
             except Exception as exc:
-                _phase(run, "Access control checks", "done", f"error: {str(exc)[:60]}")
+                _phase(run, "Access control checks", "done", "some checks couldn't complete")
         elif do_auth:
             _phase(run, "Access control checks", "done", "skipped — login failed")
         run.progress = 78
@@ -185,9 +185,13 @@ async def launch_run(run_id: str, credentials: list | None = None) -> None:
         if not _cancelled(run):  # a late cancel still wins
             run.status = "completed"
             run.progress = 100
-    except Exception as exc:  # keep the run record coherent on failure
+    except Exception:  # keep the run record coherent on failure
+        # Log the real cause server-side; show the user a calm message.
+        import logging
+        logging.getLogger("aiqa.orchestrator").exception("Run %s failed", run_id)
         run.status = "failed"
-        _phase(run, "Generate report", "done", f"error: {exc}")
+        _phase(run, "Generate report", "done",
+               "The scan couldn't be completed. Please try running it again.")
         surfaced = []
     finally:
         run.finished_at = _now()

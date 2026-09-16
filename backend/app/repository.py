@@ -11,7 +11,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 
 from app.db import Base, get_engine, get_sessionmaker
-from app.models import BugRow, ProjectRow, RunRow
+from app.models import BugRow, ProjectRow, RunRow, UserRow  # UserRow registers the users table
 from app.schemas import Bug, Project, TestRun
 
 
