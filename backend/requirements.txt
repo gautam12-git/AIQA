@@ -8,6 +8,9 @@ sqlalchemy[asyncio]>=2.0
 aiomysql>=0.2
 # Required for MySQL 8 caching_sha2_password auth (else connect fails silently)
 cryptography>=42.0
+# Product auth: password hashing + JWT sessions
+bcrypt>=4.1
+PyJWT>=2.8
 # Browser workers (used by the orchestrator; install chromium via `playwright install chromium`)
 playwright>=1.47
 # Deployment target

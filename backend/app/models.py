@@ -8,10 +8,25 @@ mapping of deeply-nested evidence/coverage/phases.
 
 from __future__ import annotations
 
-from sqlalchemy import JSON, String
+from typing import Optional
+
+from sqlalchemy import JSON, Boolean, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
+
+
+class UserRow(Base):
+    """Product user account (login + OTP email verification)."""
+    __tablename__ = "users"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    password_hash: Mapped[str] = mapped_column(String(255))
+    is_email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    otp: Mapped[Optional[str]] = mapped_column(String(12), nullable=True)
+    otp_expiry: Mapped[Optional["object"]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[str] = mapped_column(String(40))
 
 
 class ProjectRow(Base):

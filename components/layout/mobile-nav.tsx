@@ -9,7 +9,7 @@ import {
 } from "@/components/layout/icons";
 
 const nav = [
-  { href: "/", label: "Dashboard", icon: IconDashboard, exact: true },
+  { href: "/dashboard", label: "Dashboard", icon: IconDashboard, exact: true },
   { href: "/projects", label: "Projects", icon: IconProjects },
   { href: "/runs", label: "Test Runs", icon: IconRuns },
   { href: "/bugs", label: "Bugs", icon: IconBug },

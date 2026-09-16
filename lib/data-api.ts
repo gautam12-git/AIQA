@@ -7,27 +7,93 @@ import type {
  * Real API data source. Implements the AIQA API contract (CONTRACT.md)
  * against the FastAPI backend. Enabled with NEXT_PUBLIC_USE_MOCK=false.
  *
- * Responses are camelCase and match `lib/types.ts` exactly, so no
- * mapping is needed — just fetch → json.
+ * Every failure resolves to a polite, human-readable message — callers
+ * can surface `error.message` directly without leaking status codes or
+ * internals.
  * ------------------------------------------------------------------ */
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8010";
+
+const NETWORK_MSG =
+  "We couldn't reach the server. Please check your connection and try again.";
+
+const FRIENDLY: Record<number, string> = {
+  400: "That request couldn't be processed. Please check your input and try again.",
+  401: "Your session has expired. Please sign in again.",
+  403: "You don't have access to that.",
+  404: "We couldn't find what you were looking for.",
+  408: "That took too long. Please try again.",
+  429: "You're going a little fast — please wait a moment and try again.",
+  500: "Something went wrong on our end. Please try again in a moment.",
+  502: "The server is temporarily unavailable. Please try again shortly.",
+  503: "The service is busy right now. Please try again shortly.",
+  504: "The server took too long to respond. Please try again.",
+};
+
+/** Prefer the backend's polite message; fall back to a friendly status message. */
+function friendly(status: number, backendMsg?: string | null): string {
+  if (backendMsg && backendMsg.trim()) return backendMsg.trim();
+  return FRIENDLY[status] ?? "Something went wrong. Please try again.";
+}
 
 async function get<T>(path: string, params?: Record<string, string | undefined>): Promise<T> {
   const qs = new URLSearchParams();
   if (params) for (const [k, v] of Object.entries(params)) if (v) qs.set(k, v);
   const suffix = qs.toString() ? `?${qs}` : "";
-  const res = await fetch(`${API_URL}/api${path}${suffix}`, {
-    headers: { Accept: "application/json" },
-    // Server Components: always hit the backend, never Next's data cache.
-    cache: "no-store",
-  });
+
+  const headers: Record<string, string> = { Accept: "application/json" };
+  // In a Server Component, forward the caller's session cookie to the (now
+  // protected) backend — SSR fetch does not carry the browser's cookies.
+  if (typeof window === "undefined") {
+    const mod = "next/headers";
+    const { cookies } = await import(mod);
+    const cookieHeader = (await cookies()).toString();
+    if (cookieHeader) headers["Cookie"] = cookieHeader;
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api${path}${suffix}`, {
+      headers,
+      credentials: "include",
+      cache: "no-store", // always hit the backend, never Next's data cache
+    });
+  } catch {
+    throw new Error(NETWORK_MSG);
+  }
+
+  // Session expired/invalid on the server → bounce to login.
+  if (res.status === 401 && typeof window === "undefined") {
+    const { redirect } = await import("next/navigation");
+    redirect("/login");
+  }
   if (res.status === 404) return undefined as T;
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new Error(body?.error?.message ?? `Request failed: ${res.status}`);
+    throw new Error(friendly(res.status, body?.error?.message));
   }
   return res.json() as Promise<T>;
+}
+
+/** POST helper for write actions: network-safe, always throws a polite message. */
+async function postJson<T>(path: string, body?: unknown): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api${path}`, {
+      method: "POST",
+      credentials: "include",
+      headers:
+        body !== undefined
+          ? { "Content-Type": "application/json", Accept: "application/json" }
+          : { Accept: "application/json" },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new Error(NETWORK_MSG);
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(friendly(res.status, data?.error?.message));
+  return data as T;
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
@@ -51,15 +117,7 @@ export async function getRun(id: string): Promise<TestRun | undefined> {
 }
 
 export async function cancelRun(runId: string): Promise<TestRun> {
-  const res = await fetch(`${API_URL}/api/runs/${runId}/cancel`, {
-    method: "POST",
-    headers: { Accept: "application/json" },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.error?.message ?? `Cancel failed: ${res.status}`);
-  }
-  return res.json() as Promise<TestRun>;
+  return postJson<TestRun>(`/runs/${runId}/cancel`);
 }
 
 export async function getBugs(filter?: {
@@ -91,46 +149,19 @@ export interface StartScanInput {
 }
 
 export async function startScan(input: StartScanInput): Promise<TestRun> {
-  const res = await fetch(`${API_URL}/api/scans`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify(input),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.error?.message ?? `Failed to start scan: ${res.status}`);
-  }
-  return res.json() as Promise<TestRun>;
+  return postJson<TestRun>("/scans", input);
 }
 
 /* ---- Code review (POST /api/code-reviews) ------------------------ */
 
 export async function reviewCode(input: CodeReviewRequest): Promise<CodeReviewResult> {
-  const res = await fetch(`${API_URL}/api/code-reviews`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify(input),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.error?.message ?? `Code review failed: ${res.status}`);
-  }
-  return res.json() as Promise<CodeReviewResult>;
+  return postJson<CodeReviewResult>("/code-reviews", input);
 }
 
 /* ---- GitHub repo review (POST /api/repo-reviews) ---------------- */
 
 export async function reviewRepo(input: RepoReviewRequest): Promise<RepoReviewResult> {
-  const res = await fetch(`${API_URL}/api/repo-reviews`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify(input),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.error?.message ?? `Repo review failed: ${res.status}`);
-  }
-  return res.json() as Promise<RepoReviewResult>;
+  return postJson<RepoReviewResult>("/repo-reviews", input);
 }
 
 /* ---- On-demand visual UI analysis for a run --------------------- */
@@ -139,13 +170,51 @@ export async function runUIReview(
   runId: string,
   maxPages = 3,
 ): Promise<{ added: number; pagesAnalyzed: number }> {
-  const res = await fetch(`${API_URL}/api/runs/${runId}/ui-review?max_pages=${maxPages}`, {
-    method: "POST",
-    headers: { Accept: "application/json" },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.error?.message ?? `UI analysis failed: ${res.status}`);
+  return postJson<{ added: number; pagesAnalyzed: number }>(
+    `/runs/${runId}/ui-review?max_pages=${maxPages}`,
+  );
+}
+
+/* ---- Product auth (login / signup / OTP / password reset) -------- */
+
+export interface AuthUser { name: string; email: string; }
+export type AuthResult = { ok: true; user?: AuthUser; message?: string } | { ok: false; error: string };
+
+async function authPost(path: string, body: Record<string, unknown>): Promise<AuthResult> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/auth${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      credentials: "include", // send/receive the session cookie
+      body: JSON.stringify(body),
+    });
+  } catch {
+    return { ok: false, error: NETWORK_MSG };
   }
-  return res.json();
+  const data = await res.json().catch(() => null);
+  // Auth endpoints return { ok, error } at HTTP 200; only unexpected HTTP
+  // errors (500, etc.) fall through to a status-based friendly message.
+  if (!res.ok) return { ok: false, error: friendly(res.status, data?.error?.message ?? data?.error) };
+  return (data as AuthResult) ?? { ok: false, error: "Something went wrong. Please try again." };
+}
+
+export const signup = (name: string, email: string, password: string) =>
+  authPost("/signup", { name, email, password });
+export const verifyOtp = (email: string, otp: string) => authPost("/verify-otp", { email, otp });
+export const login = (email: string, password: string) => authPost("/login", { email, password });
+export const logout = () => authPost("/logout", {});
+export const forgotPassword = (email: string) => authPost("/forgot-password", { email });
+export const verifyResetOtp = (email: string, otp: string) => authPost("/verify-reset-otp", { email, otp });
+export const resetPassword = (email: string, otp: string, newPassword: string) =>
+  authPost("/reset-password", { email, otp, newPassword });
+
+export async function getMe(): Promise<AuthUser | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/auth/me`, { credentials: "include", cache: "no-store" });
+    const data = await res.json().catch(() => null);
+    return data?.ok ? (data.user as AuthUser) : null;
+  } catch {
+    return null;
+  }
 }

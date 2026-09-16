@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { IconPlus } from "@/components/layout/icons";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { UserMenu } from "@/components/auth/user-menu";
+import { LogoMark } from "@/components/layout/logo";
 
 export function Topbar() {
   return (
     <header className="glass sticky top-0 z-20 flex h-14 items-center gap-4 border-b px-5">
       <MobileNav />
 
-      <Link href="/" className="flex items-center gap-2 md:hidden">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-sm font-bold text-white">
-          A
-        </span>
+      <Link href="/dashboard" className="flex items-center gap-2 md:hidden">
+        <LogoMark className="h-7 w-7 rounded-lg" />
         <span className="text-sm font-semibold">AIQA</span>
       </Link>
 
@@ -26,13 +26,7 @@ export function Topbar() {
           <IconPlus className="h-4 w-4" />
           <span className="hidden sm:inline">New Scan</span>
         </Link>
-        <div
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-surface-2 text-xs font-semibold text-secondary"
-          aria-label="Account"
-          title="Account"
-        >
-          MM
-        </div>
+        <UserMenu />
       </div>
     </header>
   );

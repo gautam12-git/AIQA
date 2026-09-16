@@ -13,6 +13,7 @@ const TERMINAL = new Set(["completed", "failed", "cancelled"]);
 
 export function RunLive({ initialRun }: { initialRun: TestRun }) {
   const [run, setRun] = useState<TestRun>(initialRun);
+  const [conn, setConn] = useState<"live" | "reconnecting" | "offline">("live");
   const router = useRouter();
   const refreshed = useRef(false);
 
@@ -20,22 +21,40 @@ export function RunLive({ initialRun }: { initialRun: TestRun }) {
     // Only stream against the real backend for a non-terminal run.
     if (USE_MOCK || TERMINAL.has(initialRun.status)) return;
 
-    const es = new EventSource(`${API_URL}/api/runs/${initialRun.id}/events`);
-    es.addEventListener("snapshot", (e) => {
-      try {
-        setRun(JSON.parse((e as MessageEvent).data));
-      } catch {}
-    });
-    es.addEventListener("done", () => {
-      es.close();
-      // Pull the freshly-recorded findings into the server-rendered page.
-      if (!refreshed.current) {
-        refreshed.current = true;
-        router.refresh();
-      }
-    });
-    es.onerror = () => es.close();
-    return () => es.close();
+    let es: EventSource | null = null;
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let closed = false;
+    let finished = false;
+
+    function connect() {
+      es = new EventSource(`${API_URL}/api/runs/${initialRun.id}/events`);
+      es.onopen = () => { attempts = 0; setConn("live"); };
+      es.addEventListener("snapshot", (e) => {
+        try { setRun(JSON.parse((e as MessageEvent).data)); setConn("live"); attempts = 0; } catch {}
+      });
+      es.addEventListener("done", () => {
+        finished = true;
+        es?.close();
+        if (!refreshed.current) { refreshed.current = true; router.refresh(); }
+      });
+      es.onerror = () => {
+        es?.close();
+        if (closed || finished) return;
+        attempts += 1;
+        if (attempts <= 4) {
+          setConn("reconnecting");
+          timer = setTimeout(connect, Math.min(1000 * attempts, 5000)); // backoff, cap 5s
+        } else {
+          // Give up streaming; fall back to a one-off refresh for latest state.
+          setConn("offline");
+          router.refresh();
+        }
+      };
+    }
+
+    connect();
+    return () => { closed = true; clearTimeout(timer); es?.close(); };
   }, [initialRun.id, initialRun.status, router]);
 
   const isLive = run.status === "running" || run.status === "queued";
@@ -54,8 +73,19 @@ export function RunLive({ initialRun }: { initialRun: TestRun }) {
             />
             <div>
               <div className="flex items-center gap-2 text-sm text-muted">
-                {isLive && <span className="h-2 w-2 rounded-full bg-info aiqa-pulse" />}
-                {isLive ? "Exploring & verifying" : run.status === "failed" ? "Run failed" : "Run complete"}
+                {isLive && conn === "live" && <span className="h-2 w-2 rounded-full bg-info aiqa-pulse" />}
+                {isLive && conn === "reconnecting" && <span className="h-2 w-2 rounded-full bg-warning aiqa-pulse" />}
+                {isLive
+                  ? conn === "reconnecting"
+                    ? "Reconnecting to live updates…"
+                    : conn === "offline"
+                      ? "Live updates paused — refresh for the latest."
+                      : "Exploring & verifying"
+                  : run.status === "failed"
+                    ? "Run failed"
+                    : run.status === "cancelled"
+                      ? "Run cancelled"
+                      : "Run complete"}
               </div>
               <div className="mt-0.5 text-lg font-semibold text-content">
                 {run.actionsExecuted.toLocaleString()} actions

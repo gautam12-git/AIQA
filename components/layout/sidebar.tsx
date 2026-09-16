@@ -13,9 +13,10 @@ import {
   IconPerf,
   IconPlus,
 } from "@/components/layout/icons";
+import { LogoMark } from "@/components/layout/logo";
 
 const mainNav = [
-  { href: "/", label: "Dashboard", icon: IconDashboard, exact: true },
+  { href: "/dashboard", label: "Dashboard", icon: IconDashboard, exact: true },
   { href: "/projects", label: "Projects", icon: IconProjects },
   { href: "/runs", label: "Test Runs", icon: IconRuns },
   { href: "/bugs", label: "Bugs", icon: IconBug },
@@ -39,13 +40,8 @@ export function Sidebar() {
 
   return (
     <aside className="glass sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r px-3 py-4 md:flex">
-      <Link href="/" className="mb-6 flex items-center gap-2.5 px-2">
-        <span
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-[15px] font-bold text-white"
-          style={{ background: "linear-gradient(140deg, var(--grad-start), var(--grad-mid) 55%, var(--grad-end))", boxShadow: "0 6px 22px -6px rgba(236,72,153,0.45)" }}
-        >
-          A
-        </span>
+      <Link href="/dashboard" className="mb-6 flex items-center gap-2.5 px-2">
+        <LogoMark className="h-9 w-9 rounded-xl" style={{ boxShadow: "0 6px 22px -6px rgba(236,72,153,0.45)" }} />
         <div className="leading-tight">
           <div className="text-sm font-semibold tracking-tight text-content">AIQA</div>
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted">QA Engineer</div>
