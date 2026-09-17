@@ -6,9 +6,9 @@ import type { TestRun } from "@/lib/types";
 import { Card, SectionHeader, ProgressBar, Donut } from "@/components/ui/primitives";
 import { CoveragePanel } from "@/components/features/coverage-panel";
 import { coveragePct } from "@/lib/format";
+import { apiBase } from "@/lib/api-base";
 
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8010";
 const TERMINAL = new Set(["completed", "failed", "cancelled"]);
 
 export function RunLive({ initialRun }: { initialRun: TestRun }) {
@@ -28,7 +28,7 @@ export function RunLive({ initialRun }: { initialRun: TestRun }) {
     let finished = false;
 
     function connect() {
-      es = new EventSource(`${API_URL}/api/runs/${initialRun.id}/events`);
+      es = new EventSource(`${apiBase()}/api/runs/${initialRun.id}/events`);
       es.onopen = () => { attempts = 0; setConn("live"); };
       es.addEventListener("snapshot", (e) => {
         try { setRun(JSON.parse((e as MessageEvent).data)); setConn("live"); attempts = 0; } catch {}

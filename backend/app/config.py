@@ -26,6 +26,17 @@ class Settings(BaseSettings):
     app_name: str = "AIQA API"
     version: str = "0.1.0"
     cors_origins: list[str] = Field(default=["http://localhost:3000"])
+    # Also allow localhost + private-LAN origins (any port) so the app works
+    # from a phone/other device on the same Wi-Fi during development.
+    cors_origin_regex: str = Field(
+        default=(
+            r"http://(localhost|127\.0\.0\.1"
+            r"|10\.\d{1,3}\.\d{1,3}\.\d{1,3}"
+            r"|192\.168\.\d{1,3}\.\d{1,3}"
+            r"|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?"
+        ),
+        validation_alias="CORS_ORIGIN_REGEX",
+    )
     # Seed demo/mock data into an EMPTY database. Off for a real instance.
     seed_demo: bool = Field(default=False, validation_alias="SEED_DEMO")
 
