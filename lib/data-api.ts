@@ -2,6 +2,7 @@ import type {
   Bug, Project, TestRun, AppMapNode, DashboardStats,
   CodeReviewRequest, CodeReviewResult, RepoReviewRequest, RepoReviewResult,
 } from "@/lib/types";
+import { apiBase } from "@/lib/api-base";
 
 /* ------------------------------------------------------------------ *
  * Real API data source. Implements the AIQA API contract (CONTRACT.md)
@@ -11,8 +12,6 @@ import type {
  * can surface `error.message` directly without leaking status codes or
  * internals.
  * ------------------------------------------------------------------ */
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8010";
 
 const NETWORK_MSG =
   "We couldn't reach the server. Please check your connection and try again.";
@@ -53,7 +52,7 @@ async function get<T>(path: string, params?: Record<string, string | undefined>)
 
   let res: Response;
   try {
-    res = await fetch(`${API_URL}/api${path}${suffix}`, {
+    res = await fetch(`${apiBase()}/api${path}${suffix}`, {
       headers,
       credentials: "include",
       cache: "no-store", // always hit the backend, never Next's data cache
@@ -79,7 +78,7 @@ async function get<T>(path: string, params?: Record<string, string | undefined>)
 async function postJson<T>(path: string, body?: unknown): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${API_URL}/api${path}`, {
+    res = await fetch(`${apiBase()}/api${path}`, {
       method: "POST",
       credentials: "include",
       headers:
@@ -183,7 +182,7 @@ export type AuthResult = { ok: true; user?: AuthUser; message?: string } | { ok:
 async function authPost(path: string, body: Record<string, unknown>): Promise<AuthResult> {
   let res: Response;
   try {
-    res = await fetch(`${API_URL}/api/auth${path}`, {
+    res = await fetch(`${apiBase()}/api/auth${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       credentials: "include", // send/receive the session cookie
@@ -211,7 +210,7 @@ export const resetPassword = (email: string, otp: string, newPassword: string) =
 
 export async function getMe(): Promise<AuthUser | null> {
   try {
-    const res = await fetch(`${API_URL}/api/auth/me`, { credentials: "include", cache: "no-store" });
+    const res = await fetch(`${apiBase()}/api/auth/me`, { credentials: "include", cache: "no-store" });
     const data = await res.json().catch(() => null);
     return data?.ok ? (data.user as AuthUser) : null;
   } catch {

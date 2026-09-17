@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import type { Evidence } from "@/lib/types";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8010";
+import { apiBase } from "@/lib/api-base";
 
 type Tab = "screenshot" | "network" | "console" | "state";
 
@@ -50,7 +49,7 @@ export function EvidenceTabs({ evidence }: { evidence: Evidence }) {
 
 function ScreenshotView({ label, url }: { label?: string; url?: string }) {
   if (url) {
-    const src = url.startsWith("http") ? url : `${API_URL}${url}`;
+    const src = url.startsWith("http") ? url : `${apiBase()}${url}`;
     return (
       <div className="overflow-hidden rounded-lg border border-line">
         {/* eslint-disable-next-line @next/next/no-img-element */}

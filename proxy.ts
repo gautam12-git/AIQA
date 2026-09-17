@@ -9,8 +9,11 @@ import { cookies } from "next/headers";
 // (the actual app) requires a session.
 const PUBLIC_ROUTES = ["/", "/login", "/signup", "/forgot-password"];
 const SESSION_COOKIE = "aiqa_session";
+// Demo/mock builds have no backend to authenticate against — let everyone in.
+const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
 
 export default async function proxy(req: NextRequest) {
+  if (USE_MOCK) return NextResponse.next();
   const path = req.nextUrl.pathname;
   const isPublic = path === "/" || ["/login", "/signup", "/forgot-password"].some((r) => path === r || path.startsWith(r + "/"));
   const hasSession = Boolean((await cookies()).get(SESSION_COOKIE)?.value);
