@@ -39,7 +39,9 @@ export default async function proxy(req: NextRequest) {
   return NextResponse.next();
 }
 
-// Skip static assets and API routes.
+// Skip API/evidence (proxied to the backend via next.config rewrites) and
+// static assets. The proxy must NOT gate /api or it redirects auth calls to
+// the login page instead of letting them reach the backend.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"],
+  matcher: ["/((?!api|evidence|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 };
