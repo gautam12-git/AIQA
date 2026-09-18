@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getDashboardStats } from "@/lib/data";
 import {
   IconDashboard,
   IconProjects,
@@ -31,6 +33,13 @@ const insightsNav = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [activeRuns, setActiveRuns] = useState<number | null>(null);
+
+  useEffect(() => {
+    getDashboardStats()
+      .then((s) => setActiveRuns(s.activeRuns))
+      .catch(() => setActiveRuns(null));
+  }, [pathname]);
 
   function isActive(href: string, exact?: boolean) {
     const base = href.split("?")[0];
@@ -74,8 +83,12 @@ export function Sidebar() {
 
       <div className="mt-auto rounded-lg border border-line bg-surface-2 p-3">
         <div className="flex items-center gap-2 text-xs font-medium text-content">
-          <span className="h-2 w-2 rounded-full bg-success aiqa-pulse" />
-          1 run active
+          <span className={`h-2 w-2 rounded-full ${activeRuns ? "bg-success aiqa-pulse" : "bg-surface-3"}`} />
+          {activeRuns == null
+            ? "Runs"
+            : activeRuns === 0
+              ? "No active runs"
+              : `${activeRuns} run${activeRuns === 1 ? "" : "s"} active`}
         </div>
         <p className="mt-1 text-[11px] leading-snug text-muted">
           Evidence-first testing. Findings are verified by replay before they surface.
