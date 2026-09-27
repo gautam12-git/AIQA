@@ -15,9 +15,9 @@ export function RunRow({ run, projectName }: { run: TestRun; projectName?: strin
       href={`/runs/${run.id}`}
       className="group block border-b border-line px-4 py-3.5 transition-colors last:border-b-0 hover:bg-surface-2"
     >
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
             <span className="text-sm font-medium text-content group-hover:text-white">
               {modeMeta[run.mode].label}
             </span>
@@ -25,7 +25,7 @@ export function RunRow({ run, projectName }: { run: TestRun; projectName?: strin
               {run.status === "running" && <span className="sr-only">running</span>}
               {sm.label}
             </Pill>
-            {projectName && <span className="text-xs text-muted">· {projectName}</span>}
+            {projectName && <span className="min-w-0 truncate text-xs text-muted">· {projectName}</span>}
           </div>
           <div className="mt-1 flex items-center gap-2 text-xs text-muted">
             <span className="font-mono text-[11px]">{run.id}</span>
