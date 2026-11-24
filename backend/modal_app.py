@@ -30,6 +30,7 @@ api_image = modal.Image.debian_slim(python_version="3.12").pip_install(
 # Worker image: adds Chromium for the browser tool layer.
 worker_image = (
     modal.Image.debian_slim(python_version="3.12")
+    .apt_install("libatomic1")
     .pip_install("playwright>=1.47", "httpx>=0.27")
     .run_commands("playwright install --with-deps chromium")
     .add_local_python_source("app")

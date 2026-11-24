@@ -6,10 +6,15 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install Python deps, then the Chromium browser + all its OS libraries.
-# `--with-deps` pulls the apt packages Chromium needs on Debian slim.
+# Install the library needed by Playwright's Node driver, Python deps, then
+# Chromium and its remaining OS dependencies.
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt \
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ca-certificates \
+        libatomic1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir -r requirements.txt \
     && python -m playwright install --with-deps chromium
 
 # App code. See .dockerignore — .venv/.env/evidence/__pycache__ are excluded.
