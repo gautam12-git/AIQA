@@ -40,10 +40,16 @@ class Settings(BaseSettings):
     # Seed demo/mock data into an EMPTY database. Off for a real instance.
     seed_demo: bool = Field(default=False, validation_alias="SEED_DEMO")
 
-    # --- LLM (provider-agnostic; GLM by default, OpenAI-compatible) ---
-    # Fill GLM_API_KEY + confirm the exact model id / base URL from your
-    # provider dashboard. base_url points at an OpenAI-compatible endpoint.
-    llm_provider: str = "glm"
+    # --- LLM providers (OpenAI primary, Anthropic fallback) ---
+    llm_provider: str = Field(default="openai", validation_alias="LLM_PROVIDER")
+    openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
+    openai_base_url: str = Field(default="https://api.openai.com/v1", validation_alias="OPENAI_BASE_URL")
+    openai_model: str = Field(default="gpt-4o-mini", validation_alias="OPENAI_MODEL")
+    anthropic_api_key: str = Field(default="", validation_alias="ANTHROPIC_API_KEY")
+    anthropic_base_url: str = Field(default="https://api.anthropic.com/v1", validation_alias="ANTHROPIC_BASE_URL")
+    anthropic_model: str = Field(default="claude-haiku-4-5-20251001", validation_alias="ANTHROPIC_MODEL")
+    anthropic_version: str = Field(default="2023-06-01", validation_alias="ANTHROPIC_VERSION")
+    # Legacy providers remain configurable for deployments that still use them.
     glm_api_key: str = Field(default="", validation_alias="GLM_API_KEY")
     glm_base_url: str = Field(
         default="https://open.bigmodel.cn/api/paas/v4",
@@ -68,8 +74,8 @@ class Settings(BaseSettings):
     nvidia_vision_key: str = Field(default="", validation_alias="NVIDIA_VISION_KEY")
     nvidia_vision_model: str = Field(default="moonshotai/kimi-k3", validation_alias="NVIDIA_VISION_MODEL")
 
-    # Order to try providers, comma-separated: "nvidia,glm".
-    llm_order: str = Field(default="nvidia,glm", validation_alias="LLM_ORDER")
+    # Order to try providers, comma-separated (for example "openai,anthropic").
+    llm_order: str = Field(default="openai,anthropic", validation_alias="LLM_ORDER")
     llm_max_tokens: int = Field(default=4096, validation_alias="LLM_MAX_TOKENS")
 
     # --- Persistence: MySQL (database "aiqa" on localhost) ---

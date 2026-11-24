@@ -16,7 +16,8 @@ async def health():
     except Exception:
         db_ok = False
     from app import persistence
-    llm_ready = bool(s.glm_api_key) or bool(s.modal_key and s.modal_secret)
+    from app.llm.client import get_llm
+    llm_ready = get_llm().configured
     return {
         "status": "healthy",
         "version": s.version,
