@@ -5,12 +5,14 @@ list of OpenAI-compatible providers; `chat()` tries each until one succeeds, so
 a single provider being rate-limited, out of credits, or down never takes the
 AI layer offline.
 
-Providers configured today:
+Providers supported:
+  - openai : OpenAI Chat Completions API.
+  - anthropic : Anthropic Messages API, translated to the shared chat/tool format.
   - nvidia : NVIDIA NIM (integrate.api.nvidia.com), bearer auth.
   - glm    : GLM 5.3 Flash behind a Modal endpoint, Modal-Key/Secret auth
              (or bearer if a plain key is set).
 
-Order is controlled by LLM_ORDER (default "nvidia,glm").
+Order is controlled by LLM_ORDER (default "openai,anthropic").
 """
 
 from __future__ import annotations
@@ -36,6 +38,8 @@ class Provider:
     api_key: str = ""
     modal_key: str = ""
     modal_secret: str = ""
+    protocol: str = "openai"
+    api_version: str = ""
 
     def configured(self) -> bool:
         if not self.base_url or not self.model:
@@ -51,6 +55,10 @@ class Provider:
             h["Modal-Secret"] = self.modal_secret
         else:
             h["Authorization"] = f"Bearer {self.api_key}"
+        if self.protocol == "anthropic":
+            h.pop("Authorization", None)
+            h["x-api-key"] = self.api_key
+            h["anthropic-version"] = self.api_version or "2023-06-01"
         return h
 
 
@@ -92,10 +100,17 @@ class LLMClient:
                     payload["tools"] = tools
                     payload["tool_choice"] = "auto"
                 try:
-                    resp = await http.post(f"{p.base_url.rstrip('/')}/chat/completions",
-                                           headers=p.headers(), json=payload)
+                    if p.protocol == "anthropic":
+                        endpoint = f"{p.base_url.rstrip('/')}/messages"
+                        request_payload = _to_anthropic(payload)
+                    else:
+                        endpoint = f"{p.base_url.rstrip('/')}/chat/completions"
+                        request_payload = payload
+                    resp = await http.post(endpoint, headers=p.headers(), json=request_payload)
                     resp.raise_for_status()
                     data = resp.json()
+                    if p.protocol == "anthropic":
+                        data = _from_anthropic(data)
                     if not (data.get("choices")):
                         raise RuntimeError("empty choices")
                     log.info("LLM ok via %s (%s)", p.name, p.model)
@@ -111,6 +126,13 @@ class LLMClient:
 def get_llm() -> LLMClient:
     s = get_settings()
     catalog: dict[str, Provider] = {
+        "openai": Provider(
+            name="openai", base_url=s.openai_base_url, model=s.openai_model,
+            auth_mode="bearer", api_key=s.openai_api_key),
+        "anthropic": Provider(
+            name="anthropic", base_url=s.anthropic_base_url, model=s.anthropic_model,
+            auth_mode="bearer", api_key=s.anthropic_api_key,
+            protocol="anthropic", api_version=s.anthropic_version),
         "nvidia": Provider(
             name="nvidia", base_url=s.nvidia_base_url, model=s.nvidia_model,
             auth_mode="bearer", api_key=s.nvidia_api_key),
@@ -122,3 +144,73 @@ def get_llm() -> LLMClient:
     order = [name.strip() for name in s.llm_order.split(",") if name.strip()]
     providers = [catalog[n] for n in order if n in catalog]
     return LLMClient(providers, max_tokens=s.llm_max_tokens)
+
+
+def _to_anthropic(payload: dict[str, Any]) -> dict[str, Any]:
+    """Translate shared OpenAI-style messages and tools to Anthropic Messages."""
+    system_parts: list[str] = []
+    messages: list[dict[str, Any]] = []
+    for message in payload.get("messages", []):
+        role = message.get("role")
+        content = message.get("content") or ""
+        if role == "system":
+            system_parts.append(str(content))
+        elif role == "tool":
+            messages.append({"role": "user", "content": [{
+                "type": "tool_result", "tool_use_id": message.get("tool_call_id", ""),
+                "content": str(content),
+            }]})
+        elif role == "assistant" and message.get("tool_calls"):
+            blocks: list[dict[str, Any]] = []
+            if content:
+                blocks.append({"type": "text", "text": str(content)})
+            for call in message["tool_calls"]:
+                fn = call.get("function", {})
+                try:
+                    args = json.loads(fn.get("arguments") or "{}")
+                except (TypeError, json.JSONDecodeError):
+                    args = {}
+                blocks.append({"type": "tool_use", "id": call.get("id", ""),
+                               "name": fn.get("name", ""), "input": args})
+            messages.append({"role": "assistant", "content": blocks})
+        elif role in ("user", "assistant"):
+            messages.append({"role": role, "content": content})
+
+    request: dict[str, Any] = {
+        "model": payload["model"], "messages": messages,
+        "max_tokens": payload.get("max_tokens", 4096),
+    }
+    if system_parts:
+        request["system"] = "\n\n".join(system_parts)
+    if "temperature" in payload:
+        request["temperature"] = payload["temperature"]
+    if payload.get("tools"):
+        request["tools"] = [{
+            "name": tool.get("function", {}).get("name", ""),
+            "description": tool.get("function", {}).get("description", ""),
+            "input_schema": tool.get("function", {}).get("parameters", {"type": "object"}),
+        } for tool in payload["tools"]]
+    if payload.get("tool_choice") == "auto":
+        request["tool_choice"] = {"type": "auto"}
+    return request
+
+
+def _from_anthropic(data: dict[str, Any]) -> dict[str, Any]:
+    """Translate Anthropic text/tool-use blocks into the client's chat format."""
+    text_parts: list[str] = []
+    tool_calls: list[dict[str, Any]] = []
+    for index, block in enumerate(data.get("content", [])):
+        if block.get("type") == "text":
+            text_parts.append(block.get("text", ""))
+        elif block.get("type") == "tool_use":
+            tool_calls.append({
+                "id": block.get("id", f"tool_{index}"), "type": "function",
+                "function": {"name": block.get("name", ""),
+                             "arguments": json.dumps(block.get("input", {}))},
+            })
+    message: dict[str, Any] = {"role": "assistant", "content": "\n".join(text_parts) or None}
+    if tool_calls:
+        message["tool_calls"] = tool_calls
+    return {"choices": [{"index": 0, "message": message,
+                         "finish_reason": "tool_calls" if tool_calls else "stop"}],
+            "usage": data.get("usage", {})}
